@@ -18,7 +18,6 @@
 //#define USE_ADIGITALEU_TEENSY
 //#define USE_MIKROELEKTRONIKA
 //#define USE_XPRO_MEGA4809
-//#define USE_MY_PICO
 
 /*
 HX8347A  tWC =100ns  tWRH = 35ns  tRCFM = 450ns  tRC = ?  ns
@@ -42,50 +41,6 @@ ST7796S  tWC = 66ns  tWRH = 15ns  tRCFM = 450ns  tRC = 160ns
 */
 
 #if 0
-
-//################################### RP2040 ##############################
-#elif defined(USE_MY_PICO) && defined(ARDUINO_ARCH_RP2040)       //regular UNO shield on PICO
-//LCD pins  |D7  |D6  |D5  |D4  |D3  |D2 |D1  |D0  | |RD  |WR  |RS  |CS  |RST |    |
-//RP2040 pin|GP13|GP12|GP11|GP10|GP9 |GP8|GP19|GP18| |GP14|GP26|GP27|GP28|GP16|GP17|
-//UNO pins  |7   |6   |5   |4   |3   |2  |9   |8   | |A0  |A1  |A2  |A3  |A4  |A5  |
-//LCD pins  |CS  |MOSI|MISO|SCK | |SDA|SCL|
-//RP2040 pin|GP21|GP3 |GP4 |GP2 | |GP6|GP7|
-//UNO pins  |10  |11  |12  |13  | |18 |19 |
-
-
-#define WRITE_DELAY { WR_ACTIVE4; }
-#define IDLE_DELAY  { WR_IDLE; }
-#define READ_DELAY  { RD_ACTIVE8; }
-
-#define RD_PORT sio_hw
-#define RD_PIN  14
-#define WR_PORT sio_hw
-#define WR_PIN  26
-#define CD_PORT sio_hw
-#define CD_PIN  27
-#define CS_PORT sio_hw
-#define CS_PIN  28
-#define RESET_PORT sio_hw
-#define RESET_PIN  16
-
-#define LMASK         (0x03 << 18)
-#define HMASK         (0xFC << 6)
-#define GPMASK        (LMASK | HMASK)       //more intuitive style for mixed Ports
-#define write_8(x)    { sio_hw->gpio_clr = GPMASK; \
-                        sio_hw->gpio_set = ((((x) & 0x03) << 18)) | ((((x) & 0xFC) << 6)); \
-                      }
-#define read_8()      ( ((sio_hw->gpio_in & HMASK) >> 6) | ((sio_hw->gpio_in & LMASK) >> 18) )
-#define setWriteDir() { sio_hw->gpio_oe_set = GPMASK; }
-#define setReadDir()  { sio_hw->gpio_oe_clr = GPMASK; }
-#define GPIO_INIT() {for (int i = 8; i <= 14; i++) pinMode(i, OUTPUT); for (int i = 16; i <= 28; i++) pinMode(i, OUTPUT);}
-#define write8(x)     { write_8(x); WRITE_DELAY; WR_STROBE; IDLE_DELAY; }
-#define write16(x)    { uint8_t h = (x)>>8, l = x; write8(h); write8(l); }
-#define READ_8(dst)   { RD_STROBE; READ_DELAY; dst = read_8(); RD_IDLE2; RD_IDLE; }
-#define READ_16(dst)  { uint8_t hi; READ_8(hi); READ_8(dst); dst |= (hi << 8); }
-
-#define PIN_LOW(port, pin)    (port)->gpio_clr = (1<<(pin))
-#define PIN_HIGH(port, pin)   (port)->gpio_set = (1<<(pin))
-#define PIN_OUTPUT(port, pin) (port)->gpio_oe_set = (1<<(pin))
 
 #elif defined(__AVR_ATxmega128A1__)   // Xplained or MIKROE
 #if defined(USE_MIKROELEKTRONIKA)     // HX8347-D 16.2ns@62MHz 20.9ns@48MHz
@@ -598,9 +553,6 @@ static __attribute((always_inline)) void write_8(uint8_t val)
 #define PIN_OUTPUT(p, b)     *(&p-1) |= (1<<(b))
 
 #elif defined(__AVR_ATmega2560__) && defined(USE_MEGA_8BIT_PROTOSHIELD)
-//LCD pins  |D7 |D6 |D5 |D4 |D3 |D2 |D1 |D0 | |RD |WR |RS |CS |RST|
-//AVR   pin |PA7|PA6|PA5|PA4|PA3|PA2|PA1|PA0| |PF0|PF1|PF2|PF3|PF4|
-//digital#  | 29| 28| 27| 26| 25| 24| 23| 22| | A0| A1| A2| A3| A4|
 #warning USE_MEGA_8BIT_PROTOSHIELD
 #define RD_PORT PORTF
 #define RD_PIN  0
@@ -906,69 +858,6 @@ static __attribute((always_inline)) void write_8(uint8_t val)
                         PMC->PMC_PCER0 = (1 << ID_PIOA)|(1 << ID_PIOB)|(1 << ID_PIOC)|(1 << ID_PIOD); \
 						PIOA->PIO_ODR = AMASK; \
 						PIOB->PIO_ODR = BMASK; \
-						PIOD->PIO_ODR = DMASK; \
-					  }
-
-// ILI9486 is slower than ILI9481. HX8357-D is slower
-#define write8(x)     { write_8(x); WR_ACTIVE4; WR_STROBE; WR_IDLE; WR_IDLE; }
-#define write16(x)    { uint8_t h = (x)>>8, l = x; write8(h); write8(l); }
-#define READ_8(dst)   { RD_STROBE; RD_ACTIVE4; dst = read_8(); RD_IDLE; RD_IDLE; RD_IDLE; }
-#define READ_16(dst)  { uint8_t hi; READ_8(hi); READ_8(dst); dst |= (hi << 8); }
-
-// Shield Control macros.
-#define PIN_LOW(port, pin)    (port)->PIO_CODR = (1<<(pin))
-#define PIN_HIGH(port, pin)   (port)->PIO_SODR = (1<<(pin))
-#define PIN_OUTPUT(port, pin) (port)->PIO_OER = (1<<(pin))
-
-#elif defined(__SAM3X8E__) && defined(USE_MEGA_8BIT_PORTC_SHIELD)  //Surenoo 8/16bit shield on DUE
-#warning USE_MEGA_8BIT_PORTC_SHIELD on DUE
-// configure macros for the control pins
-#define RD_PORT PIOA
-#define RD_PIN  20     //D43
-#define WR_PORT PIOC
-#define WR_PIN  7      //D39
-#define CD_PORT PIOC
-#define CD_PIN  6      //D38
-#define CS_PORT PIOC
-#define CS_PIN  8      //D40
-#define RESET_PORT PIOC
-#define RESET_PIN  9   //D41
-// configure macros for data bus 
-// 
-#define AMASK         (1<<7)                    //PA7          D31
-#define CMASK         (31<<1)                   //PC1-PC5      D33-D37
-#define DMASK         (3<<9)                    //PD9,PD10     D30,D32
-
-#define write_8(x)   { PIOA->PIO_CODR = AMASK; PIOC->PIO_CODR = CMASK; PIOD->PIO_CODR = DMASK; \
-                        PIOA->PIO_SODR = (((x)&(1<<6))<<1); \
-                        PIOC->PIO_SODR = (((x)&(1<<0))<<5); \
-                        PIOC->PIO_SODR = (((x)&(1<<1))<<3); \
-                        PIOC->PIO_SODR = (((x)&(1<<2))<<1); \
-                        PIOC->PIO_SODR = (((x)&(1<<3))>>1); \
-                        PIOC->PIO_SODR = (((x)&(1<<4))>>3); \
-                        PIOD->PIO_SODR = (((x)&(1<<7))<<2)|(((x)&(1<<5))<<5); \
-					  }
-
-#define read_8()     ( 0\
-                        |((PIOC->PIO_PDSR & (1<<5))>>5)\
-                        |((PIOC->PIO_PDSR & (1<<4))>>3)\
-                        |((PIOC->PIO_PDSR & (1<<3))>>1)\
-                        |((PIOC->PIO_PDSR & (1<<2))<<1)\
-                        |((PIOC->PIO_PDSR & (1<<1))<<3)\
-                        |((PIOD->PIO_PDSR & (1<<10))>>5)\
-                        |((PIOA->PIO_PDSR & (1<<7))>>1)\
-                        |((PIOD->PIO_PDSR & (1<<9))>>2)\
-                      )
-
-#define setWriteDir() {\
-                        PIOA->PIO_OER = AMASK; PIOA->PIO_PER = AMASK; \
-                        PIOC->PIO_OER = CMASK; PIOB->PIO_PER = CMASK; \
-                        PIOD->PIO_OER = DMASK; PIOD->PIO_PER = DMASK; \
-                      }
-#define setReadDir()  { \
-                        PMC->PMC_PCER0 = (1 << ID_PIOA)|(1 << ID_PIOB)|(1 << ID_PIOC)|(1 << ID_PIOD); \
-						PIOA->PIO_ODR = AMASK; \
-						PIOC->PIO_ODR = CMASK; \
 						PIOD->PIO_ODR = DMASK; \
 					  }
 

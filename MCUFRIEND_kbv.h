@@ -5,7 +5,7 @@
  */
 
 #ifndef MCUFRIEND_KBV_H_
-#define MCUFRIEND_KBV_H_   300
+#define MCUFRIEND_KBV_H_   299
 
 //#define USE_SERIAL
 
@@ -50,7 +50,8 @@ class MCUFRIEND_kbv : public Adafruit_GFX {
     uint16_t  _lcd_xor, _lcd_capable;
 
 	private:
-	uint16_t _lcd_ID, _lcd_rev, _lcd_madctl, _lcd_drivOut, _MC, _MP, _MW, _SC, _EC, _SP, _EP;
+	const uint16_t _lcd_ID = 0x9341;
+	uint16_t _lcd_rev, _lcd_madctl, _lcd_drivOut, _MC, _MP, _MW, _SC, _EC, _SP, _EP;
 };
 
 // New color definitions.  thanks to Bodmer
